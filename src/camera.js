@@ -18,21 +18,45 @@ class Camera {
   }
 
   async start() {
-    let constraints = {
-      audio: false,
-      video: {
-        mandatory: {
-          sourceId: this.id,
-          minWidth: 600,
-          maxWidth: 800,
-          minAspectRatio: 1.6
-        },
-        optional: []
-      }
-    };
+    var DEVICES = [];
+    var final = null;
 
-    this._stream = await Camera._wrapErrors(async () => {
-      return await navigator.mediaDevices.getUserMedia(constraints);
+    this._stream = await navigator.mediaDevices.enumerateDevices()
+        .then(async function(devices) {
+
+            var arrayLength = devices.length;
+            for (var i = 0; i < arrayLength; i++)
+            {
+                var tempDevice = devices[i];
+                if (tempDevice.kind == "videoinput")
+                {
+                    DEVICES.push(tempDevice);
+                    if(tempDevice.facingMode == "environment" || tempDevice.label.indexOf("facing back")>=0 || tempDevice.label.indexOf('Back Camera')>=0 )
+                        {final = tempDevice;}
+                }
+            }
+
+            var totalCameras = DEVICES.length;
+            //If couldnt find a suitable camera, pick the last one... you can change to what works for you
+            if(final == null)
+            {
+                //console.log("no suitable camera, getting the first one");
+                final = DEVICES[0];
+            };
+
+            //Set the constraints and call getUserMedia
+            var constraints = {
+            audio: false,
+            video: {
+                deviceId: {exact: final.deviceId}
+                }
+            };
+
+            return await navigator.mediaDevices.getUserMedia(constraints);
+
+        })
+        .catch(function(err) {
+            console.log(err.name + ": " + err.message);
     });
 
     return this._stream;
